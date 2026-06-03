@@ -18,15 +18,15 @@ const sendMail = async (req, res) => {
       message: "Email sent successfully",
     });
   } catch (error) {
-  console.error("========== MAIL ERROR ==========");
-  console.error(error);
-  console.error(error.message);
+    console.error("========== MAIL ERROR ==========");
+    console.error(error);
+    console.error(error.message);
 
-  res.status(500).json({
-    success: false,
-    message: error.message,
-  });
-}              
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
 };
 
 module.exports = { sendMail };
