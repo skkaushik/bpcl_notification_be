@@ -12,6 +12,7 @@ app.use(express.json());
 app.use("/api", mailRoutes);
 
 app.get("/test", (req, res) => {
+  console.log("========== TEST API HIT ==========");
   res.json({
     success: true,
     message: "Backend Working"
