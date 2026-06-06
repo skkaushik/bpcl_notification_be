@@ -789,4 +789,9 @@ ANALYTICS_FUNCTIONS: dict[str, dict] = {
         "description": "Most problematic equipment by risk score (notification count + breakdowns)",
         "params": ["top_n"],
     },
+    "get_notifications_table": {
+        "fn": get_notifications_table,
+        "description": "Paginated list of notifications, optionally filtered by notification_type, status, priority, or equipment.",
+        "params": ["filters", "page", "page_size"],
+    },
 }

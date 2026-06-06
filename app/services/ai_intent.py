@@ -40,6 +40,7 @@ DOMAIN KNOWLEDGE:
 - Notification types: M1 (Breakdown), M2 (Preventive Maintenance), M3-M9 (other types)
 - Priorities: 1 (Very High), 2 (High), 3 (Medium), 4 (Low)
 - Work centers start with MR (Rotary equipment) or MS (Static equipment), followed by the unit name (e.g., MRFCC = Rotary FCC unit)
+- "Unit", "Plant Name", and "Main Workctr" all refer to the exact same thing (Work Center).
 - Common statuses: CRTD (Created), NOPR (No Processing), NOCO (No Completion), etc.
 - "Critical" typically means priority 1 or 2, or breakdown notifications (M1)
 - "Overdue" means the due date / required end date has passed
@@ -49,7 +50,7 @@ DOMAIN KNOWLEDGE:
 
 INSTRUCTIONS:
 1. Analyze the user's question carefully
-2. Select the BEST matching function
+2. Select the BEST matching function. If the user asks for a count (e.g. "count of M1", "how many open"), ALWAYS use a statistics function (like get_summary_stats, get_type_distribution) instead of a list function (like get_open_notifications), because list functions have a limit (max 50) and will give wrong counts.
 3. Extract any relevant parameters from the question
 4. Determine the best response_type: "summary" (text answer), "table" (data rows), "chart" (visualization), or "insight" (business analysis)
 5. If a chart makes sense, specify chart_config with type ("bar", "pie", or "line") and title

@@ -80,6 +80,7 @@ CANONICAL_FIELD_ALIASES: dict[str, list[str]] = {
         "workctr",
         "mainworkcenter",
         "unit",
+        "plantname",
     ],
     "area": [
         "area",
