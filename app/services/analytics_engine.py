@@ -34,31 +34,31 @@ def _get_col(df: pd.DataFrame, name: str) -> Optional[str]:
     return None
 
 
+VALID_DEPTS = ("MS", "MR", "MI", "ME", "MC", "FS")
+
 def _extract_unit(work_center: str) -> tuple[str, str]:
     """
     Extract department prefix and unit name from work center value.
-    E.g., 'MRFCC' → ('MR', 'FCC'), 'MSARO' → ('MS', 'ARO')
+    If no prefix matches, returns 'OTHERS' as the prefix.
     """
     wc = _safe_str(work_center)
-    if wc.startswith("MR"):
-        return "MR", wc[2:]
-    elif wc.startswith("MS"):
-        return "MS", wc[2:]
-    return "", wc
+    for prefix in VALID_DEPTS:
+        if wc.startswith(prefix):
+            return prefix, wc[len(prefix):]
+    return "OTHERS", wc
 
 
-def _is_mr_or_ms(work_center: str) -> bool:
-    """Check if a work center belongs to MR or MS department."""
-    wc = _safe_str(work_center)
-    return wc.startswith("MR") or wc.startswith("MS")
+def _is_valid_dept(work_center: str) -> bool:
+    """All work centers are now valid (mapped to specific department or OTHERS)."""
+    return True
 
 
-def _filter_mr_ms(df: pd.DataFrame) -> pd.DataFrame:
-    """Filter DataFrame to only MR/MS work center rows."""
+def _filter_valid_depts(df: pd.DataFrame) -> pd.DataFrame:
+    """Filter DataFrame to only valid department work center rows."""
     wc_col = _get_col(df, "work_center")
     if wc_col is None:
         return df
-    mask = df[wc_col].apply(lambda x: _is_mr_or_ms(x))
+    mask = df[wc_col].apply(lambda x: _is_valid_dept(x))
     return df[mask].copy()
 
 
@@ -72,7 +72,7 @@ def get_summary_stats(df: pd.DataFrame) -> dict:
         Dict with total count, breakdowns by type/status/priority,
         overdue count, and units impacted.
     """
-    filtered = _filter_mr_ms(df)
+    filtered = _filter_valid_depts(df)
     total = len(filtered)
 
     result = {
@@ -148,7 +148,7 @@ def get_open_notifications(
     Returns:
         List of notification dicts.
     """
-    filtered = _filter_mr_ms(df)
+    filtered = _filter_valid_depts(df)
     status_col = _get_col(filtered, "status")
 
     if status_col:
@@ -174,7 +174,7 @@ def get_overdue_notifications(df: pd.DataFrame, limit: int = 50) -> list[dict]:
     Returns:
         List of overdue notification dicts with days_overdue field.
     """
-    filtered = _filter_mr_ms(df)
+    filtered = _filter_valid_depts(df)
     due_col = _get_col(filtered, "due_date")
 
     if due_col is None:
@@ -202,7 +202,7 @@ def get_critical_notifications(df: pd.DataFrame, limit: int = 50) -> list[dict]:
     Returns:
         List of critical notification dicts.
     """
-    filtered = _filter_mr_ms(df)
+    filtered = _filter_valid_depts(df)
 
     # Filter for open status
     status_col = _get_col(filtered, "status")
@@ -230,7 +230,7 @@ def get_equipment_ranking(df: pd.DataFrame, top_n: int = 10) -> list[dict]:
     Returns:
         List of dicts with equipment_id, notification_count, types, statuses.
     """
-    filtered = _filter_mr_ms(df)
+    filtered = _filter_valid_depts(df)
     equip_col = _get_col(filtered, "equipment")
 
     if equip_col is None:
@@ -276,7 +276,7 @@ def get_recurring_failures(df: pd.DataFrame, min_count: int = 3) -> list[dict]:
     Returns:
         List of dicts with equipment_id, count, breakdown_count, type_distribution.
     """
-    filtered = _filter_mr_ms(df)
+    filtered = _filter_valid_depts(df)
     equip_col = _get_col(filtered, "equipment")
     type_col = _get_col(filtered, "notification_type")
     breakdown_col = _get_col(filtered, "breakdown_indicator")
@@ -328,7 +328,7 @@ def get_area_backlog(df: pd.DataFrame) -> list[dict]:
     Returns:
         List of dicts with unit, open_count, overdue_count, total_backlog.
     """
-    filtered = _filter_mr_ms(df)
+    filtered = _filter_valid_depts(df)
     wc_col = _get_col(filtered, "work_center")
     status_col = _get_col(filtered, "status")
     due_col = _get_col(filtered, "due_date")
@@ -389,7 +389,7 @@ def get_notification_trends(
     Returns:
         List of dicts with period label and count.
     """
-    filtered = _filter_mr_ms(df)
+    filtered = _filter_valid_depts(df)
     date_col = _get_col(filtered, "created_date")
 
     if date_col is None:
@@ -437,7 +437,7 @@ def get_type_distribution(df: pd.DataFrame) -> list[dict]:
     Returns:
         List of dicts with name (type) and value (count).
     """
-    filtered = _filter_mr_ms(df)
+    filtered = _filter_valid_depts(df)
     type_col = _get_col(filtered, "notification_type")
 
     if type_col is None:
@@ -458,7 +458,7 @@ def get_status_distribution(df: pd.DataFrame) -> list[dict]:
     Returns:
         List of dicts with name (status) and value (count).
     """
-    filtered = _filter_mr_ms(df)
+    filtered = _filter_valid_depts(df)
     status_col = _get_col(filtered, "status")
 
     if status_col is None:
@@ -479,7 +479,7 @@ def get_priority_distribution(df: pd.DataFrame) -> list[dict]:
     Returns:
         List of dicts with name (priority) and value (count).
     """
-    filtered = _filter_mr_ms(df)
+    filtered = _filter_valid_depts(df)
     priority_col = _get_col(filtered, "priority")
 
     if priority_col is None:
@@ -501,7 +501,7 @@ def get_aging_analysis(df: pd.DataFrame) -> list[dict]:
     Returns:
         List of dicts with age_bucket and count.
     """
-    filtered = _filter_mr_ms(df)
+    filtered = _filter_valid_depts(df)
     date_col = _get_col(filtered, "created_date")
 
     if date_col is None:
@@ -536,12 +536,12 @@ def get_aging_analysis(df: pd.DataFrame) -> list[dict]:
 
 def get_unit_wise_breakdown(df: pd.DataFrame) -> list[dict]:
     """
-    Get MR/MS breakdown per unit (matches frontend buildDueChartData logic).
+    Get breakdown per unit for all departments.
     
     Returns:
-        List of dicts with unit, MR count, MS count.
+        List of dicts with unit and counts per department.
     """
-    filtered = _filter_mr_ms(df)
+    filtered = _filter_valid_depts(df)
     wc_col = _get_col(filtered, "work_center")
 
     if wc_col is None:
@@ -554,11 +554,15 @@ def get_unit_wise_breakdown(df: pd.DataFrame) -> list[dict]:
             continue
 
         if unit not in groups:
-            groups[unit] = {"unit": unit, "MR": 0, "MS": 0}
-        groups[unit][prefix] += 1
+            groups[unit] = {"unit": unit, "MS": 0, "MR": 0, "MI": 0, "ME": 0, "MC": 0, "FS": 0, "OTHERS": 0}
+        
+        if prefix in groups[unit]:
+            groups[unit][prefix] += 1
+        else:
+            groups[unit][prefix] = 1
 
     result = list(groups.values())
-    result.sort(key=lambda x: x["MR"] + x["MS"], reverse=True)
+    result.sort(key=lambda x: sum(v for k, v in x.items() if k != "unit"), reverse=True)
     return result
 
 
@@ -570,7 +574,7 @@ def get_problematic_equipment(df: pd.DataFrame, top_n: int = 10) -> list[dict]:
     Returns:
         List of dicts with equipment details and a computed risk_score.
     """
-    filtered = _filter_mr_ms(df)
+    filtered = _filter_valid_depts(df)
     equip_col = _get_col(filtered, "equipment")
     type_col = _get_col(filtered, "notification_type")
     breakdown_col = _get_col(filtered, "breakdown_indicator")
@@ -655,7 +659,7 @@ def get_notifications_table(
     Returns:
         Dict with 'data' (list of row dicts), 'total', 'page', 'page_size'.
     """
-    filtered = _filter_mr_ms(df)
+    filtered = _filter_valid_depts(df)
 
     if filters:
         type_col = _get_col(filtered, "notification_type")
@@ -781,7 +785,7 @@ ANALYTICS_FUNCTIONS: dict[str, dict] = {
     },
     "get_unit_wise_breakdown": {
         "fn": get_unit_wise_breakdown,
-        "description": "MR (Rotary) / MS (Static) count per unit",
+        "description": "Department count per unit (MS, MR, MI, ME, MC, FS, OTHERS)",
         "params": [],
     },
     "get_problematic_equipment": {

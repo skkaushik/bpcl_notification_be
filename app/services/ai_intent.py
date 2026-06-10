@@ -39,7 +39,7 @@ AVAILABLE ANALYTICS FUNCTIONS:
 DOMAIN KNOWLEDGE:
 - Notification types: M1 (Breakdown), M2 (Preventive Maintenance), M3-M9 (other types)
 - Priorities: 1 (Very High), 2 (High), 3 (Medium), 4 (Low)
-- Work centers start with MR (Rotary equipment) or MS (Static equipment), followed by the unit name (e.g., MRFCC = Rotary FCC unit)
+- Work centers start with a department prefix (MS, MR, MI, ME, MC, FS), or fall under 'OTHERS' if no prefix matches. Followed by the unit name.
 - "Unit", "Plant Name", and "Main Workctr" all refer to the exact same thing (Work Center).
 - Common statuses: CRTD (Created), NOPR (No Processing), NOCO (No Completion), etc.
 - "Critical" typically means priority 1 or 2, or breakdown notifications (M1)
