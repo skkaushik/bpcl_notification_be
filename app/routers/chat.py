@@ -6,22 +6,22 @@ Flow:
 """
 
 import logging
+import pandas as pd
 from fastapi import APIRouter, HTTPException
-
+from httpx import request
+from requests import session
 from app.models.schemas import ChatRequest, ChatResponse
 from app.services.data_store import data_store
 from app.services.ai_intent import classify_intent
 from app.services.analytics_engine import ANALYTICS_FUNCTIONS
 from app.services.response_generator import generate_response
+from app.db.mongodb import db
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["chat"])
 
-
-@router.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
-    """
+"""
     Send a natural language question about the uploaded notification data.
     
     The system will:
@@ -30,29 +30,64 @@ async def chat(request: ChatRequest):
     3. Generate an insightful response via LLM
     
     The LLM never performs calculations directly.
-    """
-    # Validate session
+     """
+
+@router.post("/chat", response_model=ChatResponse)
+async def chat(request: ChatRequest):
+
     session = data_store.get_session(request.session_id)
-    if session is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Session not found or expired. Please upload a file first.",
+
+    normalized_df = None
+
+    # Memory check
+    if session is not None:
+        logger.info("Session loaded from memory")
+
+    # MongoDB fallback
+    else:
+        mongo_session = await db.sessions.find_one({
+            "session_id": request.session_id
+        })
+
+        if mongo_session is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Session not found."
+            )
+
+        normalized_df = pd.DataFrame(
+            mongo_session["normalized_df"]
         )
 
-    if session.row_count == 0:
-        raise HTTPException(
-            status_code=422,
-            detail="Session has no data. Please upload a valid file.",
+        logger.info(
+            f"Session loaded from MongoDB: {request.session_id}"
         )
+    # Validate data exists
+    if session:
 
+        if session.row_count == 0:
+            raise HTTPException(
+                status_code=422,
+                detail="Session has no data."
+            )
+
+    else:
+
+        if len(normalized_df) == 0:
+            raise HTTPException(
+                status_code=422,
+                detail="Session has no data."
+            )
     # Save user message to history
     data_store.add_chat_message(request.session_id, "user", request.message)
 
     try:
         # ── Step 1: Classify intent ──────────────────────────────────────
+        history = session.chat_history if session else []
+
         intent = await classify_intent(
             user_message=request.message,
-            chat_history=session.chat_history,
+            chat_history=history,
         )
 
         logger.info(
@@ -76,7 +111,16 @@ async def chat(request: ChatRequest):
                 kwargs[param] = intent.parameters[param]
 
         # Call the analytics function with the normalized DataFrame
-        analytics_data = analytics_fn(session.normalized_df, **kwargs)
+        df = (
+            session.normalized_df
+            if session
+            else normalized_df
+        )
+
+        analytics_data = analytics_fn(
+            df,
+            **kwargs
+        )
 
         logger.info(
             f"[{request.session_id[:8]}] Analytics computed: "
@@ -97,6 +141,7 @@ async def chat(request: ChatRequest):
         )
 
         return response
+    
 
     except ValueError as e:
         # Missing API key or config error
@@ -108,6 +153,14 @@ async def chat(request: ChatRequest):
             status_code=500,
             detail=f"An error occurred while processing your question: {str(e)}",
         )
+# @router.get("/mongo-test")
+# async def mongo_test():
 
+#     count = await db.sessions.count_documents({})
+
+#     return {
+#         "success": True,
+#         "session_count": count
+#     }
 
 
