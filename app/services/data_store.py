@@ -96,7 +96,7 @@ class DataStore:
         session = self.get_session(session_id)
         if session is None:
             return False
-        session.chat_history.append({
+        session.chat_history .append({
             "role": role,
             "content": content,
             "timestamp": datetime.utcnow().isoformat(),

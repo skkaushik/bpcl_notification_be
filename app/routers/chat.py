@@ -8,8 +8,8 @@ Flow:
 import logging
 import pandas as pd
 from fastapi import APIRouter, HTTPException
-from httpx import request
-from requests import session
+# from httpx import request
+# from requests import session
 from app.models.schemas import ChatRequest, ChatResponse
 from app.services.data_store import data_store
 from app.services.ai_intent import classify_intent
@@ -78,8 +78,13 @@ async def chat(request: ChatRequest):
                 status_code=422,
                 detail="Session has no data."
             )
-    # Save user message to history
-    data_store.add_chat_message(request.session_id, "user", request.message)
+    # Save user message only if memory session exists
+    if session:
+      data_store.add_chat_message(
+      request.session_id,
+      "user",
+      request.message
+        )
 
     try:
         # ── Step 1: Classify intent ──────────────────────────────────────
@@ -132,13 +137,15 @@ async def chat(request: ChatRequest):
             user_message=request.message,
             intent=intent,
             analytics_data=analytics_data,
-            chat_history=session.chat_history,
+            chat_history=history,
         )
 
-        # Save assistant response to history
-        data_store.add_chat_message(
-            request.session_id, "assistant", response.data.message
-        )
+        if session:
+            data_store.add_chat_message(
+                request.session_id,
+                "assistant",
+                response.data.message
+            )
 
         return response
     
