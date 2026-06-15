@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     # Session TTL in hours
     SESSION_TTL_HOURS: int = 24
 
+    MONGODB_URL: str
+    DATABASE_NAME: str = "notification_ai"
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
