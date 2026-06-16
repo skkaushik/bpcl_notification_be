@@ -26,6 +26,13 @@ class Settings(BaseSettings):
 
     # Session TTL in hours
     SESSION_TTL_HOURS: int = 24
+    
+    # SMTP Configuration
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = "noreply@bpcl.in"
 
     MONGODB_URL: str
     DATABASE_NAME: str = "notification_ai"
