@@ -473,9 +473,24 @@ def send_group_emails(
     try:
         server = None
         if settings.SMTP_HOST and settings.SMTP_USER:
-            server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT)
-            server.starttls()
-            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            import socket
+            # Force IPv4 to prevent Errno 101 Network is unreachable on hosts without IPv6 routing
+            old_getaddrinfo = socket.getaddrinfo
+            def ipv4_getaddrinfo(*args, **kwargs):
+                if len(args) >= 3:
+                    args = list(args)
+                    args[2] = socket.AF_INET
+                else:
+                    kwargs['family'] = socket.AF_INET
+                return old_getaddrinfo(*args, **kwargs)
+            socket.getaddrinfo = ipv4_getaddrinfo
+
+            try:
+                server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT)
+                server.starttls()
+                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            finally:
+                socket.getaddrinfo = old_getaddrinfo
         else:
             logger.warning(
                 "SMTP credentials not configured. Running in DRY RUN mode."
