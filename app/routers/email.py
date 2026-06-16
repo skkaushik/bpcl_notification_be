@@ -8,6 +8,7 @@ Falls back to MongoDB if memory is empty (e.g. after server restart).
 import logging
 import pandas as pd
 from fastapi import APIRouter, HTTPException
+from app.services.email_service import get_email_config
 
 from app.models.schemas import EmailSendRequest, EmailSendResponse
 from app.services.data_store import data_store
@@ -17,6 +18,19 @@ from app.db.mongodb import db
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/email", tags=["email"])
+
+
+@router.get("/email-config/{plant_name}")
+async def fetch_email_config(plant_name: str):
+    data = await get_email_config(plant_name)
+
+    if not data:
+        return {"success": False, "message": "Plant not found"}
+
+    return {
+        "success": True,
+        "data": data
+    }
 
 
 async def _get_dataframe() -> pd.DataFrame:
