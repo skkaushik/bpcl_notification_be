@@ -465,6 +465,7 @@ def send_group_emails(
     if not groups:
         return {"sent_count": 0, "errors": [], "groups": {},
                 "message": "No valid email targets resolved."}
+    logger.info(f"EMAIL GROUPS: {groups.keys()}")
 
     # Step 5: Generate & send
     sent_count = 0
