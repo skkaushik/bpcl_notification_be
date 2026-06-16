@@ -70,32 +70,38 @@ async def upload_file(file: UploadFile = File(...)):
 
     # Debug
     print(normalized_df.dtypes)
+    print(f"🔍 UPLOAD DEBUG: data_store id = {id(data_store)}")
+    print(f"🔍 UPLOAD DEBUG: active_session_count = {data_store.active_session_count}")
+    print(f"🔍 UPLOAD DEBUG: session_id = {session_id}")
 
-    # Mongo-safe dataframe
-    mongo_df = normalized_df.copy()
+    # Save to MongoDB (optional — don't crash if MongoDB is unavailable)
+    mongo_id = None
+    try:
+        mongo_df = normalized_df.copy()
+        for col in mongo_df.columns:
+            mongo_df[col] = mongo_df[col].astype(str)
+        mongo_data = mongo_df.to_dict("records")
 
-    for col in mongo_df.columns:
-        mongo_df[col] = mongo_df[col].astype(str)
+        result = await db.sessions.insert_one({
+            "session_id": session_id,
+            "file_name": file.filename,
+            "normalized_df": mongo_data,
+            "column_mapping": column_mapping,
+            "created_at": datetime.utcnow()
+        })
+        mongo_id = result.inserted_id
+        print(f"✅ Mongo Inserted ID: {mongo_id}")
+    except Exception as e:
+        logger.warning(f"⚠️ MongoDB save failed (non-critical): {e}")
+        print(f"⚠️ MongoDB save skipped — data is stored in memory only.")
 
-    mongo_data = mongo_df.to_dict("records")
-
-    # Save session to MongoDB
-    result = await db.sessions.insert_one({
-        "session_id": session_id,
-        "file_name": file.filename,
-        "normalized_df": mongo_data,
-        "column_mapping": column_mapping,
-        "created_at": datetime.utcnow()
-    })
-
-    print("Mongo Inserted ID:", result.inserted_id)
-    
     logger.info("================================")
     logger.info("✅ FILE UPLOAD SUCCESS")
     logger.info(f"📄 File Name: {file.filename}")
     logger.info(f"🆔 Session ID: {session_id}")
     logger.info(f"📊 Rows: {len(raw_df)}")
-    logger.info(f"🗄 Mongo ID: {result.inserted_id}")
+    if mongo_id:
+        logger.info(f"🗄 Mongo ID: {mongo_id}")
     logger.info("================================")
 
     logger.info(

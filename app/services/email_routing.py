@@ -85,6 +85,7 @@ def apply_filters(
     start_date: Optional[str],
     end_date: Optional[str],
     age_filter: int,
+    id_filter: list[str] = None,
 ) -> pd.DataFrame:
     """Apply all dashboard filters to the normalized DataFrame."""
     result = df.copy()
@@ -108,6 +109,11 @@ def apply_filters(
             return False
 
         result = result[result[wc_col].apply(match_unit)]
+
+    # ID filter
+    id_col = _get_col(result, "notification_id")
+    if id_filter and id_col:
+        result = result[result[id_col].astype(str).isin(id_filter)]
 
     # Type filter
     if type_filter and type_col:
@@ -300,43 +306,38 @@ def determine_target_email(notification: dict) -> str:
 # ─── Step 4: Grouping & Email Generation ───────────────────────────────────────
 
 def generate_email_body(notifications: list[dict], age_filter: int) -> tuple[str, str]:
-    """Generate email subject and plain-text body for a group of notifications."""
+    """Generate email subject and HTML body for a group of notifications."""
     sample = notifications[0]
     raw_unit = sample["workCtr"].strip().upper()
     plant_name = raw_unit
     if raw_unit.startswith("MR") or raw_unit.startswith("MS"):
         plant_name = raw_unit[2:].strip()
 
-    selected_age = age_filter if age_filter > 0 else 1
-    age_label = "day" if selected_age == 1 else "days"
-
-    subject = f"Pending Notifications - {plant_name} (Last {selected_age} {age_label})"
-
-    sep = "-" * 130
-
-    def pad(s, length):
-        return str(s or "").ljust(length)[:length]
-
-    header_row = (
-        f"{pad('Plant Name', 15)}{pad('Notification No', 18)}"
-        f"{pad('Notification Date', 20)}{pad('Type', 14)}"
-        f"{pad('Description', 30)}{pad('Days', 7)}"
-        f"{pad('User Status', 13)}{pad('System Status', 13)}"
-    )
-
-    body_lines = [
-        "Dear Sir,",
-        "",
-        f"Please find below the notifications pending for the last {selected_age} {age_label}:",
-        "",
-        sep,
-        header_row,
-        sep,
-    ]
+    if age_filter > 0:
+        age_label = "day" if age_filter == 1 else "days"
+        subject = f"Pending Notifications - {plant_name} (Last {age_filter} {age_label})"
+        age_text = f"for the last <strong>{age_filter} {age_label}</strong>"
+    else:
+        subject = f"Pending Notifications - {plant_name}"
+        age_text = ""
 
     now = datetime.now()
 
-    for n in notifications:
+    # Build table rows
+    headers = [
+        "S.No.", "Plant Name", "Notification No", "Notification Date",
+        "Type", "Description", "Days", "User Status", "System Status",
+    ]
+
+    header_cells = "".join(
+        f'<th style="background-color:#003865; color:#ffffff; padding:10px 12px; '
+        f'border:1px solid #002a4e; font-size:13px; font-weight:600; '
+        f'text-align:left; white-space:nowrap;">{h}</th>'
+        for h in headers
+    )
+
+    data_rows = []
+    for i, n in enumerate(notifications):
         days_pending = "0"
         if n["notifDate"] and n["notifDate"] != "N/A":
             try:
@@ -347,27 +348,57 @@ def generate_email_body(notifications: list[dict], age_filter: int) -> tuple[str
                 pass
 
         raw_desc = n["description"].replace("\r", " ").replace("\n", " ")
-        desc = raw_desc[:27] + "..." if len(raw_desc) > 27 else raw_desc
         date_str = n["notifDate"] if n["notifDate"] != "N/A" else ""
 
-        data_row = (
-            f"{pad(n['workCtr'], 15)}{pad(n['id'], 18)}"
-            f"{pad(date_str, 20)}{pad(n['type'], 14)}"
-            f"{pad(desc, 30)}{pad(days_pending, 7)}"
-            f"{pad(n['status'], 13)}{pad(n['sysStatus'], 13)}"
+        bg = "#f8f9fa" if i % 2 == 0 else "#ffffff"
+        cell_style = (
+            f'style="padding:8px 12px; border:1px solid #dee2e6; '
+            f'font-size:13px; background-color:{bg}; white-space:nowrap;"'
         )
-        body_lines.append(data_row)
+        desc_style = (
+            f'style="padding:8px 12px; border:1px solid #dee2e6; '
+            f'font-size:13px; background-color:{bg}; '
+            f'max-width:280px; word-wrap:break-word; white-space:normal;"'
+        )
 
-    body_lines.extend([
-        sep,
-        "",
-        "Kindly take necessary action.",
-        "",
-        "Regards,",
-        "Mechanical Maintenance Team",
-    ])
+        row_html = (
+            f"<td {cell_style}>{i + 1}</td>"
+            f"<td {cell_style}>{n['workCtr']}</td>"
+            f"<td {cell_style}>{n['id']}</td>"
+            f"<td {cell_style}>{date_str}</td>"
+            f"<td {cell_style}>{n['type']}</td>"
+            f"<td {desc_style}>{raw_desc}</td>"
+            f"<td {cell_style}>{days_pending}</td>"
+            f"<td {cell_style}>{n['status']}</td>"
+            f"<td {cell_style}>{n['sysStatus']}</td>"
+        )
+        data_rows.append(f"<tr>{row_html}</tr>")
 
-    return subject, "\n".join(body_lines)
+    pending_msg = f"Please find below the notifications pending {age_text}:" if age_text else "Please find below all pending notifications:"
+
+    html_body = f"""\
+<html>
+<body style="font-family: Arial, sans-serif; color: #333; margin: 0; padding: 20px;">
+    <p style="font-size: 14px;">Dear Sir,</p>
+    <p style="font-size: 14px;">{pending_msg}</p>
+
+    <table style="border-collapse: collapse; width: 100%; margin: 20px 0; font-family: Arial, sans-serif;">
+        <thead>
+            <tr>{header_cells}</tr>
+        </thead>
+        <tbody>
+            {''.join(data_rows)}
+        </tbody>
+    </table>
+
+    <p style="font-size: 14px;">Kindly take necessary action.</p>
+    <br/>
+    <p style="font-size: 14px; margin: 0;">Regards,</p>
+    <p style="font-size: 14px; font-weight: bold; margin: 4px 0 0 0;">Mechanical Maintenance Team</p>
+</body>
+</html>"""
+
+    return subject, html_body
 
 
 # ─── Step 5: Main orchestrator ─────────────────────────────────────────────────
@@ -382,6 +413,7 @@ def send_group_emails(
     start_date: Optional[str],
     end_date: Optional[str],
     age_filter: int,
+    id_filter: list[str] = None,
 ) -> dict:
     """
     Full pipeline: filter → extract → route → group → generate body → send.
@@ -397,6 +429,7 @@ def send_group_emails(
         start_date=start_date,
         end_date=end_date,
         age_filter=age_filter,
+        id_filter=id_filter,
     )
 
     logger.info(f"Filtered DataFrame: {len(filtered_df)} rows (from {len(df)} total)")
@@ -455,7 +488,7 @@ def send_group_emails(
             msg["From"] = settings.SMTP_FROM_EMAIL
             msg["To"] = target_email
             msg["Subject"] = subject
-            msg.attach(MIMEText(text_body, "plain"))
+            msg.attach(MIMEText(text_body, "html"))
 
             if server:
                 server.send_message(msg)
