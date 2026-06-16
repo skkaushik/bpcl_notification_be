@@ -8,6 +8,7 @@ try:
     client = AsyncIOMotorClient(settings.MONGODB_URL)
 
     db = client[settings.DATABASE_NAME]
+    users_collection = db["users"]
 
     logger.info("✅ MongoDB client initialized successfully")
     logger.info(f"📂 Database: {settings.DATABASE_NAME}")
