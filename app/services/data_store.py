@@ -83,6 +83,13 @@ class DataStore:
                 return None
             return session
 
+    def get_latest_session(self) -> Optional[SessionData]:
+        """Get the most recently uploaded session (ignores expiration)."""
+        with self._lock:
+            if not self._sessions:
+                return None
+            return sorted(self._sessions.values(), key=lambda s: s.upload_timestamp)[-1]
+
     def delete_session(self, session_id: str) -> bool:
         """Delete a session. Returns True if it existed."""
         with self._lock:

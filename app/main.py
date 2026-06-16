@@ -16,7 +16,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import upload, chat
+from app.routers import upload, chat, email
 from app.routers import auth
 from app.services.data_store import data_store
 
@@ -72,6 +72,7 @@ app.add_middleware(
 app.include_router(upload.router)
 app.include_router(chat.router)
 app.include_router(auth.router)
+app.include_router(email.router)
 
 
 # ─── Health Check ──────────────────────────────────────────────────────────────
