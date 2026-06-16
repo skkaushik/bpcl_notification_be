@@ -7,6 +7,7 @@ Falls back to MongoDB if memory is empty (e.g. after server restart).
 
 import logging
 import pandas as pd
+import socket
 from fastapi import APIRouter, HTTPException
 from app.services.email_service import get_email_config
 
@@ -31,6 +32,26 @@ async def fetch_email_config(plant_name: str):
         "success": True,
         "data": data
     }
+
+@router.get("/smtp-test")
+async def smtp_test():
+    try:
+        socket.create_connection(
+            ("smtp.gmail.com", 587),
+            timeout=10
+        )
+
+        return {
+            "success": True,
+            "message": "SMTP reachable"
+        }
+
+    except Exception as e:
+
+        return {
+            "success": False,
+            "error": str(e)
+        }
 
 
 async def _get_dataframe() -> pd.DataFrame:
